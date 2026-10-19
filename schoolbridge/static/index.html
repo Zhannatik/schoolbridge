@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School Bridge</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1f2328;--muted:#656d76;--line:#d8dee4;--accent:#0b57d0;--me:#e8f0fe}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font-size:20px;margin:0}
+.sub{color:var(--muted);font-size:13px}
+.langs{margin-left:auto;display:flex;gap:6px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 12px;cursor:pointer}
+button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+main{display:grid;grid-template-columns:1fr 340px;gap:16px;padding:16px 20px;max-width:1100px;margin:0 auto}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+h2{font-size:15px;margin:0 0 10px}
+#chat{height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:85%;padding:8px 12px;border-radius:12px;white-space:pre-wrap;line-height:1.4}
+.me{align-self:flex-end;background:var(--me)}
+.bot{align-self:flex-start;background:#f0f2f5}
+.draft{border:1px dashed var(--line);border-radius:8px;padding:8px 10px;margin-top:6px;font-size:13px;background:#fff}
+.draft b{display:block;margin-bottom:4px;color:var(--muted);font-weight:600}
+.row{display:flex;gap:8px;margin-top:10px}
+input[type=text],textarea,select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:8px;width:100%}
+input[type=text]{flex:1}
+textarea{min-height:90px;resize:vertical}
+ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+li{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+li.done span{text-decoration:line-through;color:var(--muted)}
+.due{color:var(--muted);font-size:12px}
+.muted{color:var(--muted);font-size:13px}
+aside{display:flex;flex-direction:column;gap:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>School Bridge</h1>
+  <span class="sub">Simulated voice assistant demo · fictional data only</span>
+  <div class="langs" id="langs"></div>
+</header>
+<main>
+  <section class="card">
+    <h2>Assistant</h2>
+    <div id="chat" aria-live="polite"></div>
+    <div class="row">
+      <input type="text" id="input" placeholder="Say or type something…" autocomplete="off">
+      <button id="mic" title="Voice input">🎤</button>
+      <button id="send">Send</button>
+    </div>
+    <label class="muted"><input type="checkbox" id="speak"> Speak replies aloud</label>
+  </section>
+  <aside>
+    <section class="card">
+      <h2>Forward a school message</h2>
+      <textarea id="notice" placeholder="Paste a message from school (use fictional text)"></textarea>
+      <div class="row">
+        <select id="child"><option value="">No child selected</option></select>
+        <button id="forward">Explain</button>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Tasks</h2>
+      <ul id="tasks"></ul>
+      <p class="muted" id="notasks">No tasks yet.</p>
+    </section>
+  </aside>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const VOICE = {en: 'en-US', ru: 'ru-RU', kk: 'kk-KZ'};
+const NAMES = {en: 'EN', ru: 'RU', kk: 'KK'};
+let language = 'en';
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  };
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({error: 'bad response'}));
+  if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+
+function addMsg(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.textContent = text;
+  $('chat').appendChild(d);
+  $('chat').scrollTop = $('chat').scrollHeight;
+  return d;
+}
+
+function addDraft(parent, result) {
+  const box = document.createElement('div');
+  box.className = 'draft';
+  const parts = [['Draft email (English). Nothing was sent.', result.draft],
+                 ['Check in your language', result.back_translation]];
+  parts.forEach(([title, body]) => {
+    const b = document.createElement('b'); b.textContent = title;
+    const p = document.createElement('div'); p.style.whiteSpace = 'pre-wrap'; p.textContent = body;
+    box.appendChild(b); box.appendChild(p);
+  });
+  parent.appendChild(box);
+}
+
+function speak(text) {
+  if (!$('speak').checked || !window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = VOICE[language] || 'en-US';
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+async function refresh() {
+  const s = await api('/api/state');
+  language = s.language;
+  const langs = $('langs'); langs.textContent = '';
+  Object.keys(NAMES).forEach(code => {
+    const b = document.createElement('button');
+    b.textContent = NAMES[code];
+    if (code === language) b.className = 'on';
+    b.onclick = async () => { await api('/api/language', {language: code}); refresh(); };
+    langs.appendChild(b);
+  });
+  const sel = $('child'); const keep = sel.value;
+  sel.textContent = '';
+  const none = document.createElement('option'); none.value = ''; none.textContent = 'No child selected';
+  sel.appendChild(none);
+  s.children.forEach(c => {
+    const o = document.createElement('option'); o.value = c.name;
+    o.textContent = c.name + (c.grade ? ' (grade ' + c.grade + ')' : '');
+    sel.appendChild(o);
+  });
+  sel.value = keep;
+  const ul = $('tasks'); ul.textContent = '';
+  s.actions.forEach(a => {
+    const li = document.createElement('li'); if (a.done) li.className = 'done';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!a.done; cb.disabled = !!a.done;
+    cb.onchange = async () => { await api('/api/done', {id: a.id}); refresh(); };
+    const wrap = document.createElement('div');
+    const t = document.createElement('span'); t.textContent = a.task;
+    wrap.appendChild(t);
+    if (a.due || a.child) {
+      const m = document.createElement('div'); m.className = 'due';
+      m.textContent = [a.child, a.due && ('due ' + a.due)].filter(Boolean).join(' · ');
+      wrap.appendChild(m);
+    }
+    li.appendChild(cb); li.appendChild(wrap); ul.appendChild(li);
+  });
+  $('notasks').style.display = s.actions.length ? 'none' : 'block';
+}
+
+async function run(userText, call) {
+  if (userText) addMsg('me', userText);
+  const pending = addMsg('bot', '…');
+  $('send').disabled = $('forward').disabled = true;
+  try {
+    const out = await call();
+    pending.textContent = out.reply || '';
+    if (out.tool === 'draft_reply' && out.result && out.result.status === 'ok') addDraft(pending, out.result);
+    speak(out.reply || '');
+  } catch (e) {
+    pending.textContent = 'Something went wrong: ' + e.message;
+  } finally {
+    $('send').disabled = $('forward').disabled = false;
+    refresh();
+  }
+}
+
+function send() {
+  const text = $('input').value.trim();
+  if (!text) return;
+  $('input').value = '';
+  run(text, () => api('/api/say', {text}));
+}
+
+$('send').onclick = send;
+$('input').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+$('forward').onclick = () => {
+  const text = $('notice').value.trim();
+  if (!text) return;
+  const child = $('child').value;
+  $('notice').value = '';
+  run('Forwarded a school message' + (child ? ' for ' + child : ''), () => api('/api/notice', {text, child}));
+};
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SR) { $('mic').disabled = true; $('mic').title = 'Voice input is not supported in this browser'; }
+$('mic').onclick = () => {
+  const rec = new SR();
+  rec.lang = VOICE[language] || 'en-US';
+  rec.interimResults = false;
+  $('mic').classList.add('on');
+  rec.onresult = e => { $('input').value = e.results[0][0].transcript; send(); };
+  rec.onerror = () => addMsg('bot', 'I could not hear that. You can type instead.');
+  rec.onend = () => $('mic').classList.remove('on');
+  rec.start();
+};
+
+addMsg('bot', 'Hi! Forward a school message on the right, or tell me what you need.');
+refresh();
+</script>
+</body>
+</html>

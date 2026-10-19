@@ -117,3 +117,8 @@ def get_notice(notice_id: int) -> dict | None:
     with _db() as c:
         row = c.execute("SELECT * FROM notices WHERE id = ?", (notice_id,)).fetchone()
     return dict(row) if row else None
+
+def last_notice() -> dict | None:
+    with _db() as c:
+        row = c.execute("SELECT * FROM notices ORDER BY id DESC LIMIT 1").fetchone()
+    return dict(row) if row else None
