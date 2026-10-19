@@ -60,5 +60,27 @@ async def complete_action(action_id: int) -> dict:
     return {"status": "ok"}
 
 
+@mcp.tool()
+async def draft_reply(notice_id: int, what_to_say: str) -> dict:
+    """Draft a polite English reply to the school, from what the parent wants to say. Never sends anything."""
+    notice = store.get_notice(notice_id)
+    if notice is None:
+        return {"status": "error", "reason": "Notice not found"}
+    language = store.get_setting("language", "en")
+    try:
+        draft, back = await notices.draft_reply(
+            notice["text"], notice["child"], what_to_say, language
+        )
+    except (llm.LLMUnavailable, ValueError) as e:
+        return {"status": "error", "reason": str(e)}
+    return {
+        "status": "ok",
+        "draft": draft,
+        "back_translation": back,
+        "language": language,
+        "sent": False,
+    }
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")

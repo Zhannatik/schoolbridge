@@ -112,3 +112,8 @@ def complete_action(action_id: int) -> bool:
     with _db() as c:
         cur = c.execute("UPDATE actions SET done = 1 WHERE id = ?", (action_id,))
         return cur.rowcount > 0
+
+def get_notice(notice_id: int) -> dict | None:
+    with _db() as c:
+        row = c.execute("SELECT * FROM notices WHERE id = ?", (notice_id,)).fetchone()
+    return dict(row) if row else None
