@@ -12,8 +12,8 @@ Project: School Bridge (Alexa+ track). Environment: Windows, Python 3.11, MCP Py
 ## 2. Choosing the MCP protocol version
 - **Task:** Decide which MCP protocol version my server must support.
 - **Expected:** One version across the hackathon rules and the Alexa+ docs.
-- **Actual:** The track mentions spec 2025-11-25 or newer, while the Alexa+ MCP client lifecycle page shows an initialize request with protocol version 2025-03-26.
-- **Workaround:** Sent the initialize request from the docs to my server and confirmed it answers with 2025-03-26 over streamable HTTP.
+- **Actual:** The track asks for spec 2025-11-25 or later, while the Alexa+ MCP client lifecycle page shows an initialize request with protocol version 2025-03-26.
+- **Workaround:** Sent initialize requests with both versions to my server; it answered with the version requested each time.
 
 ## 3. `mcp dev` on Windows
 - **Task:** Open the MCP server in MCP Inspector with `mcp dev` inside a virtualenv.
@@ -46,4 +46,4 @@ Project: School Bridge (Alexa+ track). Environment: Windows, Python 3.11, MCP Py
 - **Workaround:** Used a Cyrillic spelling of the name in the demo.
 
 ## Not covered
-I did not run the Alexa AI CLI and did not test the server with a real Alexa+ client. Items 3 to 5 were first hit in my other hackathon project and reproduced here through the shared SDK and API key. [ПРОВЕРЬ: если не воспроизводились в School Bridge, удали это предложение и пункты, которых не было]
+I did not run the Alexa AI CLI and did not test the server with a real Alexa+ client. Items 3 to 5 were first hit in my other hackathon project and reproduced here through the shared SDK and API key.

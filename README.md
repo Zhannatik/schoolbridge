@@ -6,7 +6,7 @@ Built for the Amazon Developer "Build, Ship, Shape" hackathon, Alexa+ track.
 
 ## What is real and what is simulated
 
-- **Simulated:** the Alexa+ experience. The server answers the initialize request shown in the Alexa+ MCP client docs (protocol version 2025-03-26, streamable HTTP). I could not test it against a real Alexa+ client.
+- **Simulated:** the Alexa+ experience. The track asks for MCP spec 2025-11-25 or later over Streamable HTTP. I checked the server's initialize handshake: it answers 2025-11-25 when asked for 2025-11-25, and 2025-03-26 when asked for 2025-03-26 (the version shown in the Alexa+ client lifecycle docs). I could not test against a real Alexa+ client.
 - **Real:** the MCP server (Streamable HTTP, 6 tools), the SQLite state that persists between sessions, and the Gemini-based analysis and drafting.
 - The web page calls the same Python functions in-process. The MCP server is a separate surface that an MCP client, including Alexa+, can connect to.
 
