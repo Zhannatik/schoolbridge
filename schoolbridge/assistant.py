@@ -93,6 +93,11 @@ async def _narrate(language: str, tool: str, result: dict) -> str:
     except llm.LLMUnavailable:
         return DONE[language]
 
+async def _generate_with_retry(prompt: str, **kwargs) -> str:
+    try:
+        return await llm.generate(prompt, **kwargs)
+    except llm.LLMUnavailable:
+        return await llm.generate(prompt, **kwargs)
 
 async def handle(text: str) -> dict:
     text = text.strip()[:1000]
@@ -114,7 +119,7 @@ async def handle(text: str) -> dict:
         text=text.replace("<<<", "").replace(">>>", ""),
     )
     try:
-        tool, args = parse_plan(await llm.generate(prompt, json_mode=True, timeout=30))
+        tool, args = parse_plan(await _generate_with_retry(prompt, json_mode=True, timeout=45))
     except (llm.LLMUnavailable, ValueError) as e:
         return {"reply": f"Sorry, I could not process that: {e}", "tool": "none", "result": {}}
 
